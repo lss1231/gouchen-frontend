@@ -31,7 +31,6 @@ export function useQuery() {
           sql: res.result?.generated_sql,
           explanation: res.result?.sql_explanation,
           tableData: Array.isArray(res.result?.execution_result) ? res.result?.execution_result : undefined,
-          summary: res.result?.summary,
         },
       ]);
       setState("completed");
@@ -91,12 +90,52 @@ export function useQuery() {
     [threadId, handleResponse]
   );
 
+  const editAndResubmit = useCallback(
+    async (index: number, newText: string) => {
+      if (!threadId) return;
+      setMessages((prev) => {
+        const next = prev.slice(0, index);
+        next.push({ role: "user", content: newText });
+        return next;
+      });
+      setPendingInfo(null);
+      setClarificationInfo(null);
+      setError(null);
+      setState("submitting");
+      try {
+        const res = await queryApi.createQuery({ query: newText, thread_id: threadId, user_role: "analyst" });
+        handleResponse(res);
+      } catch (e) {
+        appendSystemMessage(e instanceof Error ? e.message : String(e));
+        setState("error");
+      }
+    },
+    [threadId, handleResponse]
+  );
+
   const reset = useCallback(() => {
     setState("idle");
     setMessages([]);
     setThreadId("");
     setPendingInfo(null);
     setClarificationInfo(null);
+    setError(null);
+  }, []);
+
+  const restore = useCallback((
+    tid: string,
+    snapshot: {
+      messages: ChatMessageData[];
+      state?: QueryState;
+      pendingInfo?: QueryResponse["pending_info"] | null;
+      clarificationInfo?: QueryResponse["clarification_info"] | null;
+    }
+  ) => {
+    setThreadId(tid);
+    setMessages(snapshot.messages);
+    setState(snapshot.state ?? "idle");
+    setPendingInfo(snapshot.pendingInfo ?? null);
+    setClarificationInfo(snapshot.clarificationInfo ?? null);
     setError(null);
   }, []);
 
@@ -110,6 +149,8 @@ export function useQuery() {
     submit,
     clarify,
     approve,
+    editAndResubmit,
     reset,
+    restore,
   };
 }

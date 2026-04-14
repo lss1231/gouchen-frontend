@@ -30,6 +30,6 @@ describe("useQuery", () => {
     expect(result.current.state).toBe("submitting");
 
     await waitFor(() => expect(result.current.state).toBe("completed"));
-    expect(result.current.messages[1].summary).toBe("done");
+    expect(result.current.messages[1].content).toBe("done");
   });
 });
